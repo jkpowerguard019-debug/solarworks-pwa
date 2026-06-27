@@ -2,7 +2,7 @@
   "name": "SolarWorks 365",
   "short_name": "SolarWorks",
   "description": "Internal team progress tracker for solar installations",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
