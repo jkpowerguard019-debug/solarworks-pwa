@@ -24,20 +24,4 @@ A Progressive Web App (PWA) for tracking solar installation work progress across
 - ✅ Section 2 progress bar across 13 checklist items
 - 🔩 Multi-select material items with manual entry fields
 
-## Deployment
-Deploy to any static host (GitHub Pages, Netlify, Vercel).
 
-**GitHub Pages:**
-```
-Settings → Pages → Source: main branch / root
-```
-
-The app will be live at `https://YOUR_USERNAME.github.io/REPO_NAME/`
-
-## Local Dev
-```bash
-# Any static file server
-npx serve .
-# or
-python3 -m http.server 8080
-```
