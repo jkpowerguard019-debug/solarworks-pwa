@@ -1,9 +1,9 @@
 // SolarWorks 365 — Service Worker
-const CACHE = 'solarworks-v1';
+const CACHE = 'solarworks-v2';
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
+  './',
+  './index.html',
+  './manifest.json',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
 ];
 
