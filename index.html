@@ -920,8 +920,14 @@ async function tryRestoreSession() {
 }
 
 async function loadProfile() {
-  const { data } = await sb.from('profiles').select('*').eq('id', state.user.id).get();
+  // RLS on profiles scopes each user to their own row automatically.
+  // We do NOT filter by id here — that would pass undefined if state.user.id
+  // isn't hydrated yet, causing the "invalid input syntax for type uuid: undefined" error.
+  const { data } = await sb.from('profiles').select('*').limit(1).get();
+  if (!data || !data[0]) throw new Error('Profile not found. Contact your admin.');
   state.profile = data[0];
+  // Keep state.user.id in sync with the profile id
+  if (state.user) state.user.id = data[0].id;
 }
 
 document.getElementById('login-btn').addEventListener('click', doLogin);
