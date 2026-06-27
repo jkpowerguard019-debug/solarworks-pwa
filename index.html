@@ -1,0 +1,1817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="SolarWorks" />
+  <title>SolarWorks 365</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    /* ─── DESIGN TOKENS ─── */
+    :root {
+      --sun:       #f59e0b;
+      --sun-light: #fde68a;
+      --sun-glow:  #fef3c7;
+      --sky:       #0ea5e9;
+      --sky-dark:  #0369a1;
+      --night:     #0f172a;
+      --panel:     #1e293b;
+      --panel-2:   #273348;
+      --panel-3:   #334155;
+      --glass:     rgba(255,255,255,0.06);
+      --glass-border: rgba(255,255,255,0.10);
+      --text:      #f1f5f9;
+      --text-2:    #94a3b8;
+      --text-3:    #64748b;
+      --success:   #10b981;
+      --warning:   #f59e0b;
+      --danger:    #ef4444;
+      --radius:    14px;
+      --radius-sm: 8px;
+      --shadow:    0 4px 24px rgba(0,0,0,0.4);
+      --safe-top:  env(safe-area-inset-top, 0px);
+      --safe-bot:  env(safe-area-inset-bottom, 0px);
+    }
+
+    /* ─── RESET ─── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--night);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      overscroll-behavior: none;
+    }
+
+    /* ─── APP SHELL ─── */
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      height: 100dvh;
+    }
+
+    /* ─── SCREENS ─── */
+    .screen {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: contain;
+    }
+    .screen.active { display: flex; flex-direction: column; }
+
+    /* ─── TOPBAR ─── */
+    .topbar {
+      background: var(--panel);
+      border-bottom: 1px solid var(--glass-border);
+      padding: calc(var(--safe-top) + 12px) 16px 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      flex-shrink: 0;
+    }
+    .topbar-title { font-size: 17px; font-weight: 700; flex: 1; }
+    .topbar-sub   { font-size: 12px; color: var(--text-2); }
+    .topbar-back  { 
+      background: none; border: none; color: var(--sun); 
+      font-size: 20px; cursor: pointer; padding: 4px 8px 4px 0; 
+      display: flex; align-items: center; gap: 4px;
+    }
+    .topbar-back span { font-size: 14px; font-weight: 600; }
+    .topbar-action { background: none; border: none; color: var(--sun); font-size: 22px; cursor: pointer; padding: 4px; }
+
+    /* ─── BOTTOM NAV ─── */
+    #bottom-nav {
+      background: var(--panel);
+      border-top: 1px solid var(--glass-border);
+      display: flex;
+      padding-bottom: var(--safe-bot);
+      flex-shrink: 0;
+    }
+    .nav-btn {
+      flex: 1; background: none; border: none; color: var(--text-3);
+      padding: 10px 4px; cursor: pointer; display: flex;
+      flex-direction: column; align-items: center; gap: 3px;
+      font-size: 10px; font-weight: 500; transition: color .15s;
+    }
+    .nav-btn .icon { font-size: 22px; line-height: 1; }
+    .nav-btn.active { color: var(--sun); }
+
+    /* ─── LOGIN SCREEN ─── */
+    #screen-login {
+      background: linear-gradient(160deg, #0f172a 0%, #1e3a5f 60%, #0f172a 100%);
+      justify-content: center;
+      align-items: center;
+      min-height: 100dvh;
+      padding: 24px;
+    }
+    .login-card {
+      width: 100%; max-width: 380px;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      padding: 36px 28px 32px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow: var(--shadow);
+    }
+    .login-logo {
+      text-align: center; margin-bottom: 28px;
+    }
+    .login-logo .sun-icon {
+      font-size: 52px; display: block;
+      filter: drop-shadow(0 0 16px rgba(245,158,11,0.6));
+      animation: pulse-sun 3s ease-in-out infinite;
+    }
+    @keyframes pulse-sun {
+      0%,100% { filter: drop-shadow(0 0 16px rgba(245,158,11,0.6)); }
+      50% { filter: drop-shadow(0 0 28px rgba(245,158,11,0.9)); }
+    }
+    .login-logo h1 { font-size: 26px; font-weight: 800; margin-top: 10px; letter-spacing: -0.5px; }
+    .login-logo h1 span { color: var(--sun); }
+    .login-logo p { font-size: 13px; color: var(--text-2); margin-top: 2px; }
+
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: 12px; color: var(--text-2); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+    .field input, .field select {
+      width: 100%; padding: 13px 14px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm);
+      color: var(--text); font-size: 16px;
+      outline: none; transition: border-color .15s;
+      -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--sun); }
+    .field input::placeholder { color: var(--text-3); }
+
+    .btn-primary {
+      width: 100%; padding: 15px;
+      background: linear-gradient(135deg, var(--sun), #d97706);
+      border: none; border-radius: var(--radius-sm);
+      color: #000; font-size: 16px; font-weight: 700;
+      cursor: pointer; transition: opacity .15s, transform .1s;
+      letter-spacing: .2px;
+    }
+    .btn-primary:active { opacity: .85; transform: scale(.98); }
+    .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+
+    .login-error {
+      background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.3);
+      border-radius: var(--radius-sm); padding: 10px 12px;
+      font-size: 13px; color: #fca5a5; margin-bottom: 16px; display: none;
+    }
+
+    /* ─── HOME SCREEN ─── */
+    .home-header {
+      background: linear-gradient(135deg, var(--panel) 0%, var(--panel-2) 100%);
+      padding: calc(var(--safe-top) + 16px) 16px 20px;
+      flex-shrink: 0;
+    }
+    .home-greeting { font-size: 13px; color: var(--text-2); }
+    .home-name { font-size: 22px; font-weight: 800; margin-top: 2px; }
+    .home-role {
+      display: inline-block; margin-top: 6px;
+      background: rgba(245,158,11,.15); border: 1px solid rgba(245,158,11,.3);
+      color: var(--sun); font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .8px;
+      padding: 3px 10px; border-radius: 20px;
+    }
+
+    .stats-row {
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px; padding: 16px 16px 0;
+    }
+    .stat-card {
+      background: var(--panel);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      padding: 14px 12px; text-align: center;
+    }
+    .stat-num { font-size: 26px; font-weight: 800; color: var(--sun); line-height: 1; }
+    .stat-label { font-size: 10px; color: var(--text-2); margin-top: 3px; text-transform: uppercase; letter-spacing: .5px; }
+
+    .section-title {
+      font-size: 13px; font-weight: 700; color: var(--text-2);
+      text-transform: uppercase; letter-spacing: .8px;
+      padding: 18px 16px 10px;
+    }
+
+    /* ─── APPLICATION CARDS ─── */
+    .app-list { padding: 0 16px 100px; display: flex; flex-direction: column; gap: 10px; }
+    .app-card {
+      background: var(--panel);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      cursor: pointer; transition: background .15s;
+      position: relative; overflow: hidden;
+    }
+    .app-card:active { background: var(--panel-2); }
+    .app-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .app-card-name { font-size: 15px; font-weight: 700; }
+    .app-card-no { font-size: 11px; color: var(--text-2); margin-top: 1px; }
+    .status-badge {
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+      padding: 3px 8px; border-radius: 20px; white-space: nowrap; flex-shrink: 0;
+    }
+    .status-badge.rts  { background: rgba(16,185,129,.15); color: #34d399; border: 1px solid rgba(16,185,129,.3); }
+    .status-badge.wip  { background: rgba(245,158,11,.15); color: var(--sun); border: 1px solid rgba(245,158,11,.3); }
+    .status-badge.new  { background: rgba(14,165,233,.15); color: var(--sky); border: 1px solid rgba(14,165,233,.3); }
+
+    .app-card-progress { margin-top: 10px; }
+    .progress-bar { height: 4px; background: var(--panel-3); border-radius: 2px; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--sun), var(--sky)); border-radius: 2px; transition: width .4s ease; }
+    .progress-text { font-size: 11px; color: var(--text-2); margin-top: 4px; display: flex; justify-content: space-between; }
+
+    .app-card-meta { display: flex; gap: 12px; margin-top: 8px; }
+    .meta-item { font-size: 11px; color: var(--text-2); display: flex; align-items: center; gap: 3px; }
+
+    /* ─── FAB ─── */
+    .fab {
+      position: fixed; bottom: calc(var(--safe-bot) + 70px); right: 20px;
+      width: 56px; height: 56px;
+      background: linear-gradient(135deg, var(--sun), #d97706);
+      border: none; border-radius: 50%;
+      color: #000; font-size: 26px; cursor: pointer;
+      box-shadow: 0 4px 20px rgba(245,158,11,.5);
+      display: flex; align-items: center; justify-content: center;
+      transition: transform .15s, box-shadow .15s;
+      z-index: 40;
+    }
+    .fab:active { transform: scale(.92); box-shadow: 0 2px 10px rgba(245,158,11,.4); }
+
+    /* ─── SEARCH BAR ─── */
+    .search-wrap { padding: 10px 16px 0; flex-shrink: 0; }
+    .search-input {
+      width: 100%; padding: 10px 14px 10px 38px;
+      background: var(--panel); border: 1px solid var(--glass-border);
+      border-radius: 10px; color: var(--text); font-size: 15px;
+      outline: none; position: relative;
+    }
+    .search-wrap { position: relative; padding: 10px 16px 0; }
+    .search-icon {
+      position: absolute; left: 28px; top: 50%; transform: translateY(-50%);
+      color: var(--text-3); font-size: 16px; pointer-events: none;
+    }
+
+    /* ─── APPLICATION DETAIL ─── */
+    #screen-detail .content { padding: 16px 16px 120px; display: flex; flex-direction: column; gap: 12px; }
+    .section-card {
+      background: var(--panel); border: 1px solid var(--glass-border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    .section-card-header {
+      padding: 14px 16px; display: flex; align-items: center; gap: 10px;
+      border-bottom: 1px solid var(--glass-border);
+      cursor: pointer; user-select: none;
+    }
+    .section-card-header .s-icon { font-size: 20px; }
+    .section-card-title { font-size: 14px; font-weight: 700; flex: 1; }
+    .section-card-arrow { color: var(--text-3); font-size: 14px; transition: transform .2s; }
+    .section-card-arrow.open { transform: rotate(180deg); }
+    .section-body { padding: 16px; display: none; }
+    .section-body.open { display: block; }
+
+    /* FIELDS IN DETAIL */
+    .detail-field { margin-bottom: 14px; }
+    .detail-field:last-child { margin-bottom: 0; }
+    .detail-label { font-size: 11px; color: var(--text-2); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; }
+    .detail-input, .detail-select, .detail-textarea {
+      width: 100%; padding: 11px 12px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm);
+      color: var(--text); font-size: 15px;
+      outline: none; transition: border-color .15s;
+      -webkit-appearance: none;
+    }
+    .detail-input:focus, .detail-select:focus, .detail-textarea:focus { border-color: var(--sun); }
+    .detail-textarea { resize: vertical; min-height: 80px; font-family: inherit; }
+    .detail-select option { background: var(--panel); }
+    .detail-input[readonly] { color: var(--text-2); cursor: not-allowed; }
+
+    /* TOGGLE ROWS */
+    .toggle-grid { display: flex; flex-direction: column; gap: 2px; }
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.04);
+    }
+    .toggle-row:last-child { border-bottom: none; }
+    .toggle-label { font-size: 14px; }
+    .toggle { 
+      width: 44px; height: 26px; background: var(--panel-3);
+      border-radius: 13px; cursor: pointer; position: relative;
+      transition: background .2s; flex-shrink: 0;
+      border: none; outline: none;
+    }
+    .toggle::after {
+      content: ''; position: absolute; left: 3px; top: 3px;
+      width: 20px; height: 20px; background: #fff; border-radius: 50%;
+      transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.3);
+    }
+    .toggle.on { background: var(--success); }
+    .toggle.on::after { transform: translateX(18px); }
+
+    /* DCR RADIO */
+    .radio-group { display: flex; gap: 8px; }
+    .radio-btn {
+      flex: 1; padding: 10px; text-align: center; font-size: 13px; font-weight: 700;
+      border-radius: var(--radius-sm); cursor: pointer; transition: all .15s;
+      background: rgba(255,255,255,.05); border: 1px solid var(--glass-border);
+      color: var(--text-2);
+    }
+    .radio-btn.selected { background: rgba(245,158,11,.15); border-color: var(--sun); color: var(--sun); }
+
+    /* MULTI-SELECT MATERIAL */
+    .multi-cat { margin-bottom: 16px; }
+    .multi-cat-title { font-size: 13px; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+    .option-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .chip {
+      padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: all .15s;
+      background: rgba(255,255,255,.05); border: 1px solid var(--glass-border); color: var(--text-2);
+    }
+    .chip.selected { background: rgba(245,158,11,.15); border-color: var(--sun); color: var(--sun); }
+    .chip-entries { display: flex; flex-direction: column; gap: 6px; }
+    .chip-entry { display: flex; align-items: center; gap: 8px; }
+    .chip-entry-label { font-size: 12px; color: var(--text-2); min-width: 80px; }
+    .chip-entry-input {
+      flex: 1; padding: 8px 10px; background: rgba(255,255,255,.05);
+      border: 1px solid var(--glass-border); border-radius: 6px;
+      color: var(--text); font-size: 14px; outline: none;
+    }
+    .chip-entry-input:focus { border-color: var(--sun); }
+
+    /* PAYMENT CARDS */
+    .payment-grid { display: flex; flex-direction: column; gap: 16px; }
+    .payment-block { background: rgba(255,255,255,.03); border-radius: 10px; padding: 14px; }
+    .payment-block-title { font-size: 12px; font-weight: 700; color: var(--sun); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 10px; }
+
+    /* AUDIT LOG */
+    .audit-list { display: flex; flex-direction: column; gap: 8px; }
+    .audit-item {
+      background: rgba(255,255,255,.03); border-radius: 8px; padding: 10px 12px;
+      border-left: 3px solid var(--sun);
+    }
+    .audit-time { font-size: 11px; color: var(--text-3); }
+    .audit-action { font-size: 13px; margin-top: 2px; }
+    .audit-who { font-size: 11px; color: var(--text-2); margin-top: 2px; }
+
+    /* ─── NEW APPLICATION SCREEN ─── */
+    #screen-new .content { padding: 16px 16px 120px; display: flex; flex-direction: column; gap: 16px; }
+
+    /* ─── ACTION BUTTONS ─── */
+    .action-bar {
+      display: flex; gap: 10px; padding: 12px 16px;
+      background: var(--panel); border-top: 1px solid var(--glass-border);
+      flex-shrink: 0;
+    }
+    .btn-secondary {
+      flex: 1; padding: 13px; border-radius: var(--radius-sm);
+      background: rgba(255,255,255,.07); border: 1px solid var(--glass-border);
+      color: var(--text); font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    .btn-save {
+      flex: 2; padding: 13px; border-radius: var(--radius-sm);
+      background: linear-gradient(135deg, var(--sun), #d97706);
+      border: none; color: #000; font-size: 14px; font-weight: 700; cursor: pointer;
+    }
+    .btn-danger {
+      padding: 13px 18px; border-radius: var(--radius-sm);
+      background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.3);
+      color: #fca5a5; font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+
+    /* ─── OFFLINE TOAST ─── */
+    #offline-toast {
+      position: fixed; bottom: calc(var(--safe-bot) + 76px); left: 50%; transform: translateX(-50%);
+      background: var(--danger); color: #fff; font-size: 13px; font-weight: 600;
+      padding: 8px 18px; border-radius: 20px; z-index: 100;
+      opacity: 0; transition: opacity .3s; pointer-events: none; white-space: nowrap;
+    }
+    #offline-toast.show { opacity: 1; }
+
+    /* ─── TOAST ─── */
+    #toast {
+      position: fixed; bottom: calc(var(--safe-bot) + 76px); left: 50%; transform: translateX(-50%);
+      background: var(--panel-2); color: var(--text); font-size: 13px; font-weight: 600;
+      padding: 10px 20px; border-radius: 20px; z-index: 101;
+      opacity: 0; transition: opacity .3s; pointer-events: none; white-space: nowrap;
+      border: 1px solid var(--glass-border); max-width: 85vw; text-align: center;
+    }
+    #toast.show { opacity: 1; }
+
+    /* ─── LOADING ─── */
+    #loading-overlay {
+      position: fixed; inset: 0; background: rgba(15,23,42,.85);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 200; opacity: 0; transition: opacity .2s; pointer-events: none;
+    }
+    #loading-overlay.show { opacity: 1; pointer-events: all; }
+    .spinner {
+      width: 40px; height: 40px; border: 3px solid rgba(245,158,11,.2);
+      border-top-color: var(--sun); border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── MODAL CONFIRM ─── */
+    #modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.6);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 300; display: none; padding: 24px;
+    }
+    #modal-overlay.show { display: flex; }
+    .modal-card {
+      background: var(--panel-2); border: 1px solid var(--glass-border);
+      border-radius: 18px; padding: 24px; max-width: 340px; width: 100%;
+    }
+    .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+    .modal-body { font-size: 14px; color: var(--text-2); margin-bottom: 20px; line-height: 1.5; }
+    .modal-actions { display: flex; gap: 10px; }
+    .modal-cancel { flex: 1; padding: 13px; border-radius: 10px; background: rgba(255,255,255,.07); border: 1px solid var(--glass-border); color: var(--text); font-size: 14px; font-weight: 600; cursor: pointer; }
+    .modal-confirm { flex: 1; padding: 13px; border-radius: 10px; background: var(--danger); border: none; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; }
+
+    /* ─── EMPTY STATE ─── */
+    .empty-state { text-align: center; padding: 60px 24px; }
+    .empty-state .e-icon { font-size: 48px; margin-bottom: 12px; }
+    .empty-state h3 { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+    .empty-state p { font-size: 14px; color: var(--text-2); }
+
+    /* ─── AUDIT SCREEN ─── */
+    #screen-audit .content { padding: 16px 16px 100px; }
+
+    /* ─── PROFILE SCREEN ─── */
+    #screen-profile .content { padding: 24px 16px 100px; display: flex; flex-direction: column; gap: 12px; }
+    .profile-avatar {
+      width: 80px; height: 80px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--sun), var(--sky));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px; margin: 0 auto 16px; font-weight: 800;
+      color: #000;
+    }
+    .profile-name { text-align: center; font-size: 22px; font-weight: 800; }
+    .profile-role-badge { text-align: center; margin-top: 6px; }
+    .menu-item {
+      background: var(--panel); border: 1px solid var(--glass-border);
+      border-radius: var(--radius); padding: 16px; display: flex;
+      align-items: center; gap: 12px; cursor: pointer; transition: background .15s;
+    }
+    .menu-item:active { background: var(--panel-2); }
+    .menu-icon { font-size: 22px; }
+    .menu-text { flex: 1; }
+    .menu-title { font-size: 15px; font-weight: 600; }
+    .menu-sub { font-size: 12px; color: var(--text-2); margin-top: 1px; }
+    .menu-arrow { color: var(--text-3); }
+
+    /* ─── RESPONSIVE ─── */
+    @media (min-width: 600px) {
+      .app-list, #screen-detail .content, #screen-new .content { max-width: 600px; margin: 0 auto; }
+      .stats-row { max-width: 600px; margin: 0 auto; }
+      .login-card { max-width: 420px; }
+    }
+
+    /* ─── ANIMATIONS ─── */
+    .fade-in { animation: fadeIn .2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ─── OFFLINE PENDING BADGE ─── */
+    .pending-badge {
+      position: absolute; top: 10px; right: 12px;
+      background: var(--warning); color: #000; font-size: 9px; font-weight: 700;
+      padding: 2px 6px; border-radius: 10px; text-transform: uppercase;
+    }
+
+    .category-badge {
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+      padding: 2px 7px; border-radius: 20px;
+    }
+    .category-badge.RES        { background: rgba(16,185,129,.15); color: #34d399; }
+    .category-badge.COM        { background: rgba(14,165,233,.15); color: var(--sky); }
+    .category-badge.INDUSTRIAL { background: rgba(245,158,11,.15);  color: var(--sun); }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ═══════════════════════════════════════════
+       LOGIN SCREEN
+  ═══════════════════════════════════════════ -->
+  <div id="screen-login" class="screen active">
+    <div class="login-card">
+      <div class="login-logo">
+        <span class="sun-icon">☀️</span>
+        <h1>Solar<span>Works</span></h1>
+        <p>Team Progress Tracker</p>
+      </div>
+      <div id="login-error" class="login-error">Incorrect credentials. Try again.</div>
+      <div class="field">
+        <label>Email or Username</label>
+        <input type="text" id="login-identifier" placeholder="Enter email or username" autocomplete="username" autocapitalize="none" />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="Enter password" autocomplete="current-password" />
+      </div>
+      <button class="btn-primary" id="login-btn">Sign In</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       HOME SCREEN
+  ═══════════════════════════════════════════ -->
+  <div id="screen-home" class="screen">
+    <div class="home-header">
+      <div class="home-greeting">Good <span id="greeting-time">morning</span>,</div>
+      <div class="home-name" id="home-username">Loading...</div>
+      <div class="home-role" id="home-role">—</div>
+    </div>
+    <div class="stats-row" id="stats-row">
+      <div class="stat-card"><div class="stat-num" id="stat-total">—</div><div class="stat-label">Total</div></div>
+      <div class="stat-card"><div class="stat-num" id="stat-wip">—</div><div class="stat-label">In Progress</div></div>
+      <div class="stat-card"><div class="stat-num" id="stat-done">—</div><div class="stat-label">Complete</div></div>
+    </div>
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" id="search-input" type="search" placeholder="Search by name or consumer no." />
+    </div>
+    <div class="section-title">Applications</div>
+    <div class="app-list" id="app-list">
+      <div class="empty-state"><div class="e-icon">📋</div><h3>No applications yet</h3><p>Tap + to create the first one</p></div>
+    </div>
+    <button class="fab" id="fab-new" title="New Application">+</button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       APPLICATION DETAIL SCREEN
+  ═══════════════════════════════════════════ -->
+  <div id="screen-detail" class="screen">
+    <div class="topbar" id="detail-topbar">
+      <button class="topbar-back" id="detail-back"><span>‹</span> <span>Back</span></button>
+      <div style="flex:1">
+        <div class="topbar-title" id="detail-title">Application</div>
+        <div class="topbar-sub" id="detail-consumer-no"></div>
+      </div>
+      <button class="topbar-action" id="detail-pdf-btn" title="Share PDF">📤</button>
+    </div>
+    <div class="content fade-in" id="detail-content">
+      <!-- sections injected by JS -->
+    </div>
+    <div class="action-bar" id="detail-action-bar">
+      <button class="btn-danger" id="detail-delete-btn">🗑</button>
+      <button class="btn-save" id="detail-save-btn">Save Changes</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       NEW APPLICATION SCREEN
+  ═══════════════════════════════════════════ -->
+  <div id="screen-new" class="screen">
+    <div class="topbar">
+      <button class="topbar-back" id="new-back"><span>‹</span> <span>Back</span></button>
+      <div class="topbar-title">New Application</div>
+    </div>
+    <div class="content" id="new-content">
+      <div class="section-card">
+        <div class="section-card-header" onclick="toggleSection(this)">
+          <span class="s-icon">📋</span>
+          <span class="section-card-title">Consumer & Site Info</span>
+          <span class="section-card-arrow open">▾</span>
+        </div>
+        <div class="section-body open">
+          <div class="detail-field"><div class="detail-label">Consumer Name *</div><input class="detail-input" id="new-name" placeholder="Full name" /></div>
+          <div class="detail-field"><div class="detail-label">Address</div><textarea class="detail-textarea" id="new-address" placeholder="Site address"></textarea></div>
+          <div class="detail-field"><div class="detail-label">Mobile Number</div><input class="detail-input" id="new-mobile" type="tel" placeholder="10-digit number" /></div>
+          <div class="detail-field">
+            <div class="detail-label">Category</div>
+            <select class="detail-select" id="new-category">
+              <option value="">Select category</option>
+              <option value="RES">Residential</option>
+              <option value="COM">Commercial</option>
+              <option value="INDUSTRIAL">Industrial</option>
+            </select>
+          </div>
+          <div class="detail-field">
+            <div class="detail-label">Site Installer</div>
+            <select class="detail-select" id="new-installer">
+              <option value="">Assign installer</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <button class="btn-primary" id="new-submit-btn">Create Application</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       AUDIT SCREEN (Admin only)
+  ═══════════════════════════════════════════ -->
+  <div id="screen-audit" class="screen">
+    <div class="topbar">
+      <div class="topbar-title">Audit Log</div>
+      <div class="topbar-sub" style="margin-left:auto;font-size:11px;color:var(--text-2);">Admin only</div>
+    </div>
+    <div class="content" id="audit-content">
+      <div class="audit-list" id="audit-list"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       PROFILE SCREEN
+  ═══════════════════════════════════════════ -->
+  <div id="screen-profile" class="screen">
+    <div class="topbar"><div class="topbar-title">Profile</div></div>
+    <div class="content">
+      <div class="profile-avatar" id="profile-avatar">—</div>
+      <div class="profile-name" id="profile-name">—</div>
+      <div class="profile-role-badge"><span class="home-role" id="profile-role">—</span></div>
+      <div class="menu-item" id="menu-offline-sync">
+        <span class="menu-icon">🔄</span>
+        <div class="menu-text">
+          <div class="menu-title">Sync Offline Drafts</div>
+          <div class="menu-sub" id="offline-count">Checking...</div>
+        </div>
+      </div>
+      <div class="menu-item" id="menu-logout">
+        <span class="menu-icon">🚪</span>
+        <div class="menu-text"><div class="menu-title">Sign Out</div><div class="menu-sub">Log out of SolarWorks</div></div>
+        <span class="menu-arrow">›</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       BOTTOM NAV
+  ═══════════════════════════════════════════ -->
+  <nav id="bottom-nav" style="display:none">
+    <button class="nav-btn active" data-screen="home" onclick="navTo('home',this)"><span class="icon">🏠</span>Home</button>
+    <button class="nav-btn" data-screen="audit" id="nav-audit" onclick="navTo('audit',this)" style="display:none"><span class="icon">📜</span>Audit</button>
+    <button class="nav-btn" data-screen="profile" onclick="navTo('profile',this)"><span class="icon">👤</span>Profile</button>
+  </nav>
+</div>
+
+<!-- Toasts & overlays -->
+<div id="offline-toast">📵 Offline — changes saved locally</div>
+<div id="toast"></div>
+<div id="loading-overlay"><div class="spinner"></div></div>
+<div id="modal-overlay">
+  <div class="modal-card">
+    <div class="modal-title" id="modal-title">Confirm Delete</div>
+    <div class="modal-body" id="modal-body">Are you sure you want to delete this application? This cannot be undone.</div>
+    <div class="modal-actions">
+      <button class="modal-cancel" id="modal-cancel">Cancel</button>
+      <button class="modal-confirm" id="modal-confirm">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+//  SUPABASE CONFIG
+// ═══════════════════════════════════════
+const SUPABASE_URL = 'https://lrpufwfazunexjzgpmpc.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxycHVmd2ZhenVuZXhqemdwbXBjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1NDA0OTQsImV4cCI6MjA5ODExNjQ5NH0.oSLz3CPGR_UoBAlV9gunYmwrrjqoyfwiajkogvdWmR4';
+
+const sb = {
+  async request(path, opts = {}) {
+    const headers = {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${this._token || SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': opts.prefer || 'return=representation',
+      ...opts.headers
+    };
+    const res = await fetch(`${SUPABASE_URL}/rest/v1${path}`, { ...opts, headers });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || err.hint || `HTTP ${res.status}`);
+    }
+    const txt = await res.text();
+    return txt ? JSON.parse(txt) : [];
+  },
+
+  async signIn(email, password) {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error_description || data.error);
+    this._token = data.access_token;
+    localStorage.setItem('sw_token', data.access_token);
+    localStorage.setItem('sw_refresh', data.refresh_token);
+    return data;
+  },
+
+  async signOut() {
+    await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${this._token}` }
+    });
+    this._token = null;
+    localStorage.removeItem('sw_token');
+    localStorage.removeItem('sw_refresh');
+  },
+
+  async rpc(fn, params = {}) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${this._token || SUPABASE_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(params)
+    });
+    const data = await res.json();
+    return data;
+  },
+
+  from(table) {
+    return new SBQuery(table, this);
+  }
+};
+
+class SBQuery {
+  constructor(table, client) {
+    this._table = table; this._client = client;
+    this._filters = []; this._order = null;
+    this._select = '*'; this._limit = null;
+  }
+  select(s) { this._select = s; return this; }
+  eq(col, val) { this._filters.push(`${col}=eq.${encodeURIComponent(val)}`); return this; }
+  neq(col, val) { this._filters.push(`${col}=neq.${encodeURIComponent(val)}`); return this; }
+  ilike(col, val) { this._filters.push(`${col}=ilike.${encodeURIComponent(val)}`); return this; }
+  order(col, asc = false) { this._order = `${col}.${asc ? 'asc' : 'desc'}`; return this; }
+  limit(n) { this._limit = n; return this; }
+  async get() {
+    let path = `/${this._table}?select=${encodeURIComponent(this._select)}`;
+    this._filters.forEach(f => path += `&${f}`);
+    if (this._order) path += `&order=${this._order}`;
+    if (this._limit) path += `&limit=${this._limit}`;
+    const data = await this._client.request(path);
+    return { data, error: null };
+  }
+  async insert(body) {
+    const data = await this._client.request(`/${this._table}`, { method: 'POST', body: JSON.stringify(body) });
+    return { data, error: null };
+  }
+  async update(body) {
+    let path = `/${this._table}`;
+    if (this._filters.length) path += '?' + this._filters.join('&');
+    const data = await this._client.request(path, { method: 'PATCH', body: JSON.stringify(body), prefer: 'return=representation' });
+    return { data, error: null };
+  }
+  async delete() {
+    let path = `/${this._table}`;
+    if (this._filters.length) path += '?' + this._filters.join('&');
+    await this._client.request(path, { method: 'DELETE', prefer: 'return=minimal' });
+    return { error: null };
+  }
+}
+
+// ═══════════════════════════════════════
+//  APP STATE
+// ═══════════════════════════════════════
+let state = {
+  user: null,
+  profile: null,
+  applications: [],
+  currentApp: null,
+  dropdowns: {},
+  installers: [],
+  offlineDrafts: JSON.parse(localStorage.getItem('sw_drafts') || '[]'),
+  currentScreen: 'login'
+};
+
+// ═══════════════════════════════════════
+//  OFFLINE SUPPORT
+// ═══════════════════════════════════════
+window.addEventListener('online',  () => { hideOfflineToast(); syncOfflineDrafts(); });
+window.addEventListener('offline', () => showOfflineToast());
+function showOfflineToast() { document.getElementById('offline-toast').classList.add('show'); }
+function hideOfflineToast() { document.getElementById('offline-toast').classList.remove('show'); }
+if (!navigator.onLine) showOfflineToast();
+
+function saveDraft(draft) {
+  state.offlineDrafts.push({ ...draft, _id: Date.now(), _ts: new Date().toISOString() });
+  localStorage.setItem('sw_drafts', JSON.stringify(state.offlineDrafts));
+  updateOfflineCount();
+}
+
+async function syncOfflineDrafts() {
+  if (!state.offlineDrafts.length || !navigator.onLine) return;
+  showToast('🔄 Syncing offline drafts...');
+  const failed = [];
+  for (const draft of state.offlineDrafts) {
+    try {
+      if (draft.type === 'create') {
+        await createApplicationInDB(draft.data);
+      } else if (draft.type === 'update') {
+        await updateApplicationInDB(draft.appId, draft.section, draft.data);
+      }
+    } catch (e) {
+      failed.push(draft);
+    }
+  }
+  state.offlineDrafts = failed;
+  localStorage.setItem('sw_drafts', JSON.stringify(state.offlineDrafts));
+  updateOfflineCount();
+  showToast(failed.length ? `⚠️ ${failed.length} drafts failed to sync` : '✅ All drafts synced!');
+  if (!failed.length) await loadApplications();
+}
+
+function updateOfflineCount() {
+  const el = document.getElementById('offline-count');
+  if (el) el.textContent = state.offlineDrafts.length ? `${state.offlineDrafts.length} pending sync` : 'No pending drafts';
+}
+
+// ═══════════════════════════════════════
+//  UTILITIES
+// ═══════════════════════════════════════
+function showToast(msg, dur = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+function showLoading() { document.getElementById('loading-overlay').classList.add('show'); }
+function hideLoading() { document.getElementById('loading-overlay').classList.remove('show'); }
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(`screen-${name}`).classList.add('active');
+  state.currentScreen = name;
+}
+
+function navTo(screen, btn) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  showScreen(screen);
+  if (screen === 'home') loadApplications();
+  if (screen === 'audit') loadAudit();
+  if (screen === 'profile') renderProfile();
+}
+
+function toggleSection(header) {
+  const body = header.nextElementSibling;
+  const arrow = header.querySelector('.section-card-arrow');
+  body.classList.toggle('open');
+  arrow.classList.toggle('open');
+}
+
+function greetingByTime() {
+  const h = new Date().getHours();
+  return h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+}
+
+function formatConsumerNo(no) {
+  return no ? String(no).replace(/(\d{4})(\d{4})(\d{4})/, '$1 $2 $3') : '—';
+}
+
+function progressColor(pct) {
+  if (pct >= 100) return '#10b981';
+  if (pct >= 50)  return '#f59e0b';
+  return '#64748b';
+}
+
+function calcProgress(s2) {
+  if (!s2) return 0;
+  const fields = ['name_change','model_agreement','national_portal_update','load_enhancement',
+    'gen_meter_testing','wcr','annexure_proforma','geo_tagged_photo','site_photos_complete',
+    'netmetering','rts_upload','release_order','subsidy_disbursement'];
+  const done = fields.filter(f => s2[f]).length;
+  return Math.round((done / fields.length) * 100);
+}
+
+function statusFromProgress(pct) {
+  if (pct === 0) return { label: 'New', cls: 'new' };
+  if (pct >= 100) return { label: 'Complete', cls: 'rts' };
+  return { label: 'In Progress', cls: 'wip' };
+}
+
+// ═══════════════════════════════════════
+//  AUTH
+// ═══════════════════════════════════════
+async function tryRestoreSession() {
+  const token = localStorage.getItem('sw_token');
+  if (!token) return false;
+  sb._token = token;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) return false;
+    const user = await res.json();
+    if (user.id) { state.user = user; await loadProfile(); return true; }
+  } catch (e) {}
+  return false;
+}
+
+async function loadProfile() {
+  const { data } = await sb.from('profiles').select('*').eq('id', state.user.id).get();
+  state.profile = data[0];
+}
+
+document.getElementById('login-btn').addEventListener('click', doLogin);
+document.getElementById('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+async function doLogin() {
+  const identifier = document.getElementById('login-identifier').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.style.display = 'none';
+
+  if (!identifier || !password) { errEl.textContent = 'Please enter your credentials.'; errEl.style.display = 'block'; return; }
+
+  showLoading();
+  try {
+    let email = identifier;
+    // If not an email, resolve username → email via the DB function
+    if (!identifier.includes('@')) {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/email_for_username`, {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uname: identifier })
+      });
+      const data = await res.json();
+      if (!data) throw new Error('Username not found.');
+      email = data;
+    }
+    await sb.signIn(email, password);
+    // Get user
+    const uRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${sb._token}` }
+    });
+    state.user = await uRes.json();
+    await loadProfile();
+    enterApp();
+  } catch (e) {
+    errEl.textContent = e.message || 'Login failed. Check your credentials.';
+    errEl.style.display = 'block';
+  } finally {
+    hideLoading();
+  }
+}
+
+function enterApp() {
+  const p = state.profile;
+  document.getElementById('home-username').textContent = p.full_name;
+  document.getElementById('home-role').textContent = p.role.charAt(0).toUpperCase() + p.role.slice(1);
+  document.getElementById('greeting-time').textContent = greetingByTime();
+
+  // Show audit nav only for admin
+  if (p.role === 'admin') {
+    document.getElementById('nav-audit').style.display = '';
+  }
+
+  document.getElementById('bottom-nav').style.display = 'flex';
+  showScreen('home');
+  loadDropdowns();
+  loadInstallers();
+  loadApplications();
+  updateOfflineCount();
+  syncOfflineDrafts();
+}
+
+// ═══════════════════════════════════════
+//  DROPDOWN OPTIONS
+// ═══════════════════════════════════════
+async function loadDropdowns() {
+  try {
+    const { data } = await sb.from('dropdown_options').select('*').get();
+    state.dropdowns = {};
+    data.forEach(d => {
+      if (!state.dropdowns[d.category]) state.dropdowns[d.category] = [];
+      state.dropdowns[d.category].push(d.label);
+    });
+  } catch(e) {}
+}
+
+async function loadInstallers() {
+  try {
+    const { data } = await sb.from('profiles').select('id,full_name,username').eq('role','installer').get();
+    state.installers = data;
+    const sel = document.getElementById('new-installer');
+    if (sel) {
+      data.forEach(ins => {
+        const opt = document.createElement('option');
+        opt.value = ins.id; opt.textContent = ins.full_name || ins.username;
+        sel.appendChild(opt);
+      });
+    }
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════
+//  LOAD APPLICATIONS
+// ═══════════════════════════════════════
+async function loadApplications() {
+  showLoading();
+  try {
+    let query = sb.from('applications').select('*,section2_progress(*),profiles!applications_site_installer_id_fkey(full_name,username)').order('created_at', false);
+    if (state.profile.role === 'installer') {
+      query = query.eq('site_installer_id', state.profile.id);
+    }
+    const { data } = await query.get();
+    state.applications = data;
+    renderAppList(data);
+    renderStats(data);
+  } catch(e) {
+    showToast('⚠️ Could not load applications');
+  } finally {
+    hideLoading();
+  }
+}
+
+function renderStats(apps) {
+  const total = apps.length;
+  const wip = apps.filter(a => {
+    const p = calcProgress(a.section2_progress);
+    return p > 0 && p < 100;
+  }).length;
+  const done = apps.filter(a => calcProgress(a.section2_progress) >= 100).length;
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-wip').textContent = wip;
+  document.getElementById('stat-done').textContent = done;
+}
+
+function renderAppList(apps) {
+  const list = document.getElementById('app-list');
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const filtered = q ? apps.filter(a =>
+    (a.name || '').toLowerCase().includes(q) ||
+    (a.consumer_no || '').includes(q)
+  ) : apps;
+
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state"><div class="e-icon">📋</div><h3>${q ? 'No results' : 'No applications yet'}</h3><p>${q ? 'Try a different search' : 'Tap + to create one'}</p></div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(app => {
+    const pct = calcProgress(app.section2_progress);
+    const { label, cls } = statusFromProgress(pct);
+    const installer = app.profiles?.full_name || app.profiles?.username || '—';
+    const cat = app.category || '';
+    return `
+      <div class="app-card" onclick="openApp('${app.id}')">
+        <div class="app-card-header">
+          <div>
+            <div class="app-card-name">${app.name || 'Unnamed'}</div>
+            <div class="app-card-no">${formatConsumerNo(app.consumer_no)}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+            <span class="status-badge ${cls}">${label}</span>
+            ${cat ? `<span class="category-badge ${cat}">${cat}</span>` : ''}
+          </div>
+        </div>
+        ${state.profile.role !== 'installer' ? `
+        <div class="app-card-progress">
+          <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${progressColor(pct)}"></div></div>
+          <div class="progress-text"><span>${pct}% complete</span><span>🔧 ${installer}</span></div>
+        </div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+document.getElementById('search-input').addEventListener('input', () => renderAppList(state.applications));
+
+// ═══════════════════════════════════════
+//  OPEN / DETAIL APPLICATION
+// ═══════════════════════════════════════
+async function openApp(id) {
+  showLoading();
+  try {
+    const [appRes, s2Res, s3Res, matRes, s4Res] = await Promise.all([
+      sb.from('applications').select('*,profiles!applications_site_installer_id_fkey(id,full_name)').eq('id', id).get(),
+      sb.from('section2_progress').select('*').eq('application_id', id).get(),
+      sb.from('section3_material').select('*').eq('application_id', id).get(),
+      sb.from('material_items').select('*').eq('application_id', id).get(),
+      sb.from('section4_details').select('*').eq('application_id', id).get(),
+    ]);
+    let payRes = { data: [] };
+    if (state.profile.role === 'admin') {
+      payRes = await sb.from('payments').select('*').eq('application_id', id).get();
+    }
+
+    state.currentApp = {
+      app: appRes.data[0],
+      s2:  s2Res.data[0] || {},
+      s3:  s3Res.data[0] || {},
+      materials: matRes.data,
+      s4:  s4Res.data[0] || {},
+      pay: payRes.data[0] || {}
+    };
+
+    renderDetail();
+    showScreen('detail');
+  } catch(e) {
+    showToast('⚠️ Could not load application');
+  } finally {
+    hideLoading();
+  }
+}
+
+function renderDetail() {
+  const { app, s2, s3, materials, s4, pay } = state.currentApp;
+  const role = state.profile.role;
+
+  document.getElementById('detail-title').textContent = app.name || 'Application';
+  document.getElementById('detail-consumer-no').textContent = formatConsumerNo(app.consumer_no);
+
+  // Delete button visibility
+  document.getElementById('detail-delete-btn').style.display = role === 'admin' ? '' : 'none';
+
+  const content = document.getElementById('detail-content');
+  content.innerHTML = '';
+
+  // ── SECTION 1: Consumer Info (all roles see it)
+  const canEditS1 = role === 'admin' || role === 'liasoning' || role === 'installer';
+  const installerOptions = state.installers.map(ins =>
+    `<option value="${ins.id}" ${app.site_installer_id === ins.id ? 'selected' : ''}>${ins.full_name || ins.username}</option>`
+  ).join('');
+
+  content.appendChild(buildSection('📋', 'Section 1 — Consumer & Site Info', `
+    <div class="detail-field"><div class="detail-label">Consumer No.</div><input class="detail-input" value="${formatConsumerNo(app.consumer_no)}" readonly /></div>
+    <div class="detail-field"><div class="detail-label">Name</div><input class="detail-input" id="d-name" value="${app.name || ''}" ${!canEditS1 ? 'readonly' : ''} /></div>
+    <div class="detail-field"><div class="detail-label">Address</div><textarea class="detail-textarea" id="d-address" ${!canEditS1 ? 'readonly' : ''}>${app.address || ''}</textarea></div>
+    <div class="detail-field"><div class="detail-label">Mobile</div><input class="detail-input" id="d-mobile" type="tel" value="${app.mobile_num || ''}" ${!canEditS1 ? 'readonly' : ''} /></div>
+    <div class="detail-field"><div class="detail-label">Category</div>
+      <select class="detail-select" id="d-category" ${!canEditS1 ? 'disabled' : ''}>
+        <option value="">Select</option>
+        <option value="RES" ${app.category==='RES'?'selected':''}>Residential</option>
+        <option value="COM" ${app.category==='COM'?'selected':''}>Commercial</option>
+        <option value="INDUSTRIAL" ${app.category==='INDUSTRIAL'?'selected':''}>Industrial</option>
+      </select>
+    </div>
+    <div class="detail-field"><div class="detail-label">Site Installer</div>
+      <select class="detail-select" id="d-installer" ${role==='installer'?'disabled':''}>
+        <option value="">— Unassigned —</option>${installerOptions}
+      </select>
+    </div>
+  `, true));
+
+  // ── SECTION 2: Progress (Admin + Liasoning only)
+  if (role === 'admin' || role === 'liasoning') {
+    const toggleFields = [
+      { key: 'name_change', label: 'Name Change' },
+      { key: 'model_agreement', label: 'Model Agreement' },
+      { key: 'national_portal_update', label: 'National Portal Update' },
+      { key: 'load_enhancement', label: 'Load Enhancement' },
+      { key: 'gen_meter_testing', label: 'Gen Meter Testing' },
+      { key: 'wcr', label: 'WCR' },
+      { key: 'annexure_proforma', label: 'Annexure Proforma' },
+      { key: 'geo_tagged_photo', label: 'Geo Tagged Photo ☑' },
+      { key: 'site_photos_complete', label: 'Site Photos Complete ☑' },
+      { key: 'netmetering', label: 'Net Metering' },
+      { key: 'rts_upload', label: 'RTS Upload' },
+      { key: 'release_order', label: 'Release Order' },
+      { key: 'subsidy_disbursement', label: 'Subsidy Disbursement' },
+    ];
+    const pct = calcProgress(s2);
+    const togglesHTML = `
+      <div style="margin-bottom:14px">
+        <div class="progress-bar"><div class="progress-fill" id="s2-progress-fill" style="width:${pct}%;background:${progressColor(pct)}"></div></div>
+        <div class="progress-text"><span id="s2-pct-text">${pct}% complete</span></div>
+      </div>
+      <div class="detail-field"><div class="detail-label">DCR / N-DCR</div>
+        <div class="radio-group">
+          <div class="radio-btn ${s2.dcr==='DCR'?'selected':''}" onclick="selectDCR(this,'DCR')" data-val="DCR">DCR</div>
+          <div class="radio-btn ${s2.dcr==='N-DCR'?'selected':''}" onclick="selectDCR(this,'N-DCR')" data-val="N-DCR">N-DCR</div>
+        </div>
+      </div>
+      <div class="toggle-grid">
+        ${toggleFields.map(f => `
+          <div class="toggle-row">
+            <span class="toggle-label">${f.label}</span>
+            <button class="toggle ${s2[f.key]?'on':''}" data-key="${f.key}" onclick="toggleField(this)"></button>
+          </div>`).join('')}
+      </div>`;
+    content.appendChild(buildSection('✅', 'Section 2 — Progress Checklist', togglesHTML));
+  }
+
+  // ── SECTION 3: Material (Admin + Liasoning + Installer)
+  const canEditS3 = true;
+  const multiCats = [
+    { key: 'ac_cable',        label: 'AC Cable' },
+    { key: 'dc_cable',        label: 'DC Cable' },
+    { key: 'down_conductor',  label: 'Down Conductor' },
+    { key: 'pvc_pipe',        label: 'PVC Pipe' },
+    { key: 'elbow_bend_t',    label: 'Elbow / Bend / T' },
+    { key: 'earthing_kit',    label: 'Earthing Kit' },
+    { key: 'structure_pipe',  label: 'Structure Pipe' },
+    { key: 'base_plate',      label: 'Base Plate' },
+    { key: 'j_bolts',         label: 'J Bolts' },
+  ];
+
+  const multiHTML = multiCats.map(cat => {
+    const opts = state.dropdowns[cat.key] || [];
+    const selected = materials.filter(m => m.category === cat.key);
+    const chips = opts.map(o => {
+      const existing = selected.find(m => m.option_label === o);
+      return `<div class="chip ${existing?'selected':''}" data-cat="${cat.key}" data-opt="${o}" onclick="toggleChip(this)">${o}</div>`;
+    }).join('');
+    const entries = selected.map(m =>
+      `<div class="chip-entry" data-mat-id="${m.id}">
+        <span class="chip-entry-label">${m.option_label}</span>
+        <input class="chip-entry-input" placeholder="Value / qty" value="${m.manual_value || m.quantity || ''}" data-mat-id="${m.id}" data-cat="${m.category}" data-opt="${m.option_label}" onchange="updateMatEntry(this)" />
+      </div>`
+    ).join('');
+    return `
+      <div class="multi-cat" data-cat="${cat.key}">
+        <div class="multi-cat-title">${cat.label}</div>
+        <div class="option-chips" id="chips-${cat.key}">${chips}</div>
+        <div class="chip-entries" id="entries-${cat.key}">${entries}</div>
+      </div>`;
+  }).join('');
+
+  const s3HTML = `
+    <div class="detail-field"><div class="detail-label">Panel Quantity</div><input class="detail-input" id="d-panel-qty" type="number" value="${s3.panel_qty || ''}" /></div>
+    <div class="detail-field"><div class="detail-label">Inverter Quantity</div><input class="detail-input" id="d-inverter-qty" type="number" value="${s3.inverter_qty || ''}" /></div>
+    <div class="detail-field"><div class="detail-label">Inverter Serial No.</div><input class="detail-input" id="d-inverter-sr" value="${s3.inverter_sr_no || ''}" /></div>
+    <div class="detail-field"><div class="detail-label">Generation Meter</div><input class="detail-input" id="d-gen-meter" value="${s3.generation_meter || ''}" /></div>
+    <div class="detail-field"><div class="detail-label">Earthing Pits</div><input class="detail-input" id="d-earthing-pits" type="number" value="${s3.earthing_pits || ''}" /></div>
+    <div class="detail-field"><div class="detail-label">Anchor Bolt Size</div><input class="detail-input" id="d-anchor-size" value="${s3.anchor_bolt_size || ''}" /></div>
+    <div class="detail-field"><div class="detail-label">Anchor Bolt Qty</div><input class="detail-input" id="d-anchor-qty" type="number" value="${s3.anchor_bolt_qty || ''}" /></div>
+    <div class="detail-field"><div class="detail-label">Front Leg Size</div><input class="detail-input" id="d-front-size" value="${s3.front_leg_size || ''}" /></div>
+    <div class="detail-field"><div class="detail-label">Front Leg Qty</div><input class="detail-input" id="d-front-qty" type="number" value="${s3.front_leg_qty || ''}" /></div>
+    <div class="detail-field"><div class="detail-label">Rear Leg Size</div><input class="detail-input" id="d-rear-size" value="${s3.rear_leg_size || ''}" /></div>
+    <div class="detail-field"><div class="detail-label">Rear Leg Qty</div><input class="detail-input" id="d-rear-qty" type="number" value="${s3.rear_leg_qty || ''}" /></div>
+    <div style="border-top:1px solid var(--glass-border);margin:16px 0;"></div>
+    <div class="detail-label" style="margin-bottom:12px;">Multi-Item Materials</div>
+    ${multiHTML}
+    <div class="detail-field" style="margin-top:8px"><div class="detail-label">Other Notes</div><textarea class="detail-textarea" id="d-other-notes">${s3.other_notes || ''}</textarea></div>
+  `;
+  content.appendChild(buildSection('🔩', 'Section 3 — Material Details', s3HTML));
+
+  // ── SECTION 4: Installation Details (Admin + Liasoning only)
+  if (role === 'admin' || role === 'liasoning') {
+    const s4HTML = `
+      <div class="detail-field"><div class="detail-label">Installation Start Date</div><input class="detail-input" id="d-inst-start" type="date" value="${s4.installation_start || ''}" /></div>
+      <div class="detail-field"><div class="detail-label">Completion Date</div><input class="detail-input" id="d-inst-end" type="date" value="${s4.installation_completion || ''}" /></div>
+      <div class="detail-field"><div class="detail-label">Notes</div><textarea class="detail-textarea" id="d-s4-notes">${s4.notes || ''}</textarea></div>
+    `;
+    content.appendChild(buildSection('📅', 'Section 4 — Installation Timeline', s4HTML));
+  }
+
+  // ── PAYMENTS (Admin only)
+  if (role === 'admin') {
+    const payHTML = `
+      <div class="payment-grid">
+        <div class="detail-field"><div class="detail-label">Total Project Cost (₹)</div><input class="detail-input" id="d-total-cost" type="number" value="${pay.total_project_cost || ''}" /></div>
+        <div class="payment-block">
+          <div class="payment-block-title">Advance Payment</div>
+          <div class="detail-field"><div class="detail-label">Amount (₹)</div><input class="detail-input" id="d-adv-amt" type="number" value="${pay.advance_amount || ''}" /></div>
+          <div class="detail-field"><div class="detail-label">Date</div><input class="detail-input" id="d-adv-date" type="date" value="${pay.advance_date || ''}" /></div>
+          <div class="detail-field"><div class="detail-label">Mode</div>
+            <select class="detail-select" id="d-adv-mode">
+              <option value="">Select</option>
+              <option value="CASH" ${pay.advance_mode==='CASH'?'selected':''}>Cash</option>
+              <option value="CHEQUE" ${pay.advance_mode==='CHEQUE'?'selected':''}>Cheque</option>
+              <option value="ONLINE" ${pay.advance_mode==='ONLINE'?'selected':''}>Online</option>
+            </select>
+          </div>
+          <div class="detail-field"><div class="detail-label">Cheque / Txn Ref</div><input class="detail-input" id="d-adv-ref" value="${pay.advance_cheque_no || pay.advance_transaction_id || ''}" /></div>
+        </div>
+        <div class="payment-block">
+          <div class="payment-block-title">2nd Installment</div>
+          <div class="detail-field"><div class="detail-label">Amount (₹)</div><input class="detail-input" id="d-2nd-amt" type="number" value="${pay.second_installment_amount || ''}" /></div>
+          <div class="detail-field"><div class="detail-label">Date</div><input class="detail-input" id="d-2nd-date" type="date" value="${pay.second_installment_date || ''}" /></div>
+        </div>
+        <div class="payment-block">
+          <div class="payment-block-title">Balance</div>
+          <div class="detail-field"><div class="detail-label">Balance Amount (₹)</div><input class="detail-input" id="d-bal-amt" type="number" value="${pay.balance_amount || ''}" /></div>
+          <div class="detail-field"><div class="detail-label">Payment Status</div>
+            <select class="detail-select" id="d-pay-status">
+              <option value="">Select</option>
+              <option value="PARTIAL" ${pay.status==='PARTIAL'?'selected':''}>Partial</option>
+              <option value="FULL" ${pay.status==='FULL'?'selected':''}>Full</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    `;
+    content.appendChild(buildSection('💰', 'Section 6 — Payment Tracker', payHTML));
+  }
+
+  content.classList.add('fade-in');
+}
+
+function buildSection(icon, title, html, open = false) {
+  const card = document.createElement('div');
+  card.className = 'section-card';
+  card.innerHTML = `
+    <div class="section-card-header" onclick="toggleSection(this)">
+      <span class="s-icon">${icon}</span>
+      <span class="section-card-title">${title}</span>
+      <span class="section-card-arrow ${open?'open':''}">▾</span>
+    </div>
+    <div class="section-body ${open?'open':''}">${html}</div>
+  `;
+  return card;
+}
+
+// ─── Toggle helpers ───
+window.selectDCR = function(el, val) {
+  document.querySelectorAll('.radio-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  el.dataset.selected = val;
+};
+
+window.toggleField = function(btn) {
+  btn.classList.toggle('on');
+  updateS2Progress();
+};
+
+function updateS2Progress() {
+  const toggles = document.querySelectorAll('.toggle');
+  const total = toggles.length;
+  const done = [...toggles].filter(t => t.classList.contains('on')).length;
+  const pct = Math.round((done / total) * 100);
+  const fill = document.getElementById('s2-progress-fill');
+  const txt  = document.getElementById('s2-pct-text');
+  if (fill) { fill.style.width = pct + '%'; fill.style.background = progressColor(pct); }
+  if (txt)  txt.textContent = pct + '% complete';
+}
+
+// ─── Multi-select material chips ───
+window.toggleChip = function(chip) {
+  const cat  = chip.dataset.cat;
+  const opt  = chip.dataset.opt;
+  chip.classList.toggle('selected');
+  const entries = document.getElementById(`entries-${cat}`);
+  if (chip.classList.contains('selected')) {
+    const row = document.createElement('div');
+    row.className = 'chip-entry';
+    row.dataset.cat = cat; row.dataset.opt = opt;
+    row.innerHTML = `
+      <span class="chip-entry-label">${opt}</span>
+      <input class="chip-entry-input" placeholder="Value / qty" data-cat="${cat}" data-opt="${opt}" onchange="updateMatEntry(this)" />
+    `;
+    entries.appendChild(row);
+  } else {
+    const existing = entries.querySelector(`.chip-entry[data-opt="${opt}"]`);
+    if (existing) existing.remove();
+    // Mark for deletion from DB
+    const matId = entries.querySelector(`[data-mat-id][data-opt="${opt}"]`);
+    if (matId && matId.dataset.matId) {
+      state._deleteMats = state._deleteMats || [];
+      state._deleteMats.push(matId.dataset.matId);
+    }
+  }
+};
+
+window.updateMatEntry = function(input) {
+  // Live-save not needed; collected on Save
+};
+
+// ═══════════════════════════════════════
+//  SAVE APPLICATION
+// ═══════════════════════════════════════
+document.getElementById('detail-save-btn').addEventListener('click', saveDetail);
+document.getElementById('detail-back').addEventListener('click', () => { showScreen('home'); loadApplications(); });
+
+async function saveDetail() {
+  const appId = state.currentApp.app.id;
+  const role = state.profile.role;
+
+  const updates = {};
+
+  // Section 1
+  updates.app = {
+    name: document.getElementById('d-name')?.value || state.currentApp.app.name,
+    address: document.getElementById('d-address')?.value,
+    mobile_num: document.getElementById('d-mobile')?.value,
+    category: document.getElementById('d-category')?.value || null,
+    site_installer_id: document.getElementById('d-installer')?.value || null,
+  };
+
+  // Section 2
+  if (role === 'admin' || role === 'liasoning') {
+    const toggles = document.querySelectorAll('.toggle');
+    const s2 = {};
+    toggles.forEach(t => { s2[t.dataset.key] = t.classList.contains('on'); });
+    const dcrBtn = document.querySelector('.radio-btn.selected');
+    if (dcrBtn) s2.dcr = dcrBtn.dataset.val;
+    updates.s2 = s2;
+  }
+
+  // Section 3
+  updates.s3 = {
+    panel_qty:         intVal('d-panel-qty'),
+    inverter_qty:      intVal('d-inverter-qty'),
+    inverter_sr_no:    strVal('d-inverter-sr'),
+    generation_meter:  strVal('d-gen-meter'),
+    earthing_pits:     intVal('d-earthing-pits'),
+    anchor_bolt_size:  strVal('d-anchor-size'),
+    anchor_bolt_qty:   intVal('d-anchor-qty'),
+    front_leg_size:    strVal('d-front-size'),
+    front_leg_qty:     intVal('d-front-qty'),
+    rear_leg_size:     strVal('d-rear-size'),
+    rear_leg_qty:      intVal('d-rear-qty'),
+    other_notes:       strVal('d-other-notes'),
+  };
+
+  // Material items
+  const chipEntries = document.querySelectorAll('.chip-entry');
+  updates.materials = [...chipEntries].map(row => ({
+    application_id: appId,
+    category: row.dataset.cat || row.querySelector('[data-cat]')?.dataset.cat,
+    option_label: row.dataset.opt || row.querySelector('[data-opt]')?.dataset.opt,
+    manual_value: row.querySelector('input')?.value || '',
+    _mat_id: row.dataset.matId || row.querySelector('[data-mat-id]')?.dataset.matId
+  })).filter(m => m.category && m.option_label);
+
+  // Section 4
+  if (role === 'admin' || role === 'liasoning') {
+    updates.s4 = {
+      notes: strVal('d-s4-notes'),
+      installation_start: strVal('d-inst-start') || null,
+      installation_completion: strVal('d-inst-end') || null,
+    };
+  }
+
+  // Payments
+  if (role === 'admin') {
+    updates.pay = {
+      total_project_cost: numVal('d-total-cost'),
+      advance_amount: numVal('d-adv-amt'),
+      advance_date: strVal('d-adv-date') || null,
+      advance_mode: strVal('d-adv-mode') || null,
+      advance_cheque_no: strVal('d-adv-ref') || null,
+      second_installment_amount: numVal('d-2nd-amt'),
+      second_installment_date: strVal('d-2nd-date') || null,
+      balance_amount: numVal('d-bal-amt'),
+      status: strVal('d-pay-status') || null,
+    };
+  }
+
+  if (!navigator.onLine) {
+    saveDraft({ type: 'update', appId, section: 'all', data: updates });
+    showToast('💾 Saved offline — will sync when back online');
+    return;
+  }
+
+  showLoading();
+  try {
+    await updateApplicationInDB(appId, updates);
+    showToast('✅ Changes saved!');
+    // Refresh local state
+    const { data: newApp } = await sb.from('applications').select('*').eq('id', appId).get();
+    state.currentApp.app = newApp[0];
+  } catch(e) {
+    showToast('⚠️ Save failed: ' + e.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+async function updateApplicationInDB(appId, updates) {
+  const p = updates.app || updates;
+  // App row
+  if (updates.app) {
+    await sb.from('applications').eq('id', appId).update({ ...updates.app, updated_at: new Date().toISOString() });
+  }
+  if (updates.s2) {
+    await sb.from('section2_progress').eq('application_id', appId).update({ ...updates.s2, updated_at: new Date().toISOString() });
+  }
+  if (updates.s3) {
+    const s3clean = Object.fromEntries(Object.entries(updates.s3).filter(([k,v]) => v !== undefined && v !== ''));
+    await sb.from('section3_material').eq('application_id', appId).update({ ...s3clean, updated_at: new Date().toISOString() });
+  }
+  if (updates.s4) {
+    const s4clean = Object.fromEntries(Object.entries(updates.s4).filter(([k,v]) => v !== undefined));
+    await sb.from('section4_details').eq('application_id', appId).update({ ...s4clean, updated_at: new Date().toISOString() });
+  }
+  if (updates.pay) {
+    const payClean = Object.fromEntries(Object.entries(updates.pay).filter(([k,v]) => v !== undefined && v !== '' && v !== null || v === null));
+    await sb.from('payments').eq('application_id', appId).update({ ...payClean, updated_at: new Date().toISOString() });
+  }
+  // Material items — delete removed, upsert selected
+  if (updates.materials) {
+    // Delete removed items
+    if (state._deleteMats?.length) {
+      for (const id of state._deleteMats) {
+        await sb.from('material_items').eq('id', id).delete();
+      }
+      state._deleteMats = [];
+    }
+    // Upsert current items
+    for (const m of updates.materials) {
+      if (m._mat_id) {
+        await sb.from('material_items').eq('id', m._mat_id).update({ manual_value: m.manual_value });
+      } else {
+        await sb.from('material_items').insert({ application_id: appId, category: m.category, option_label: m.option_label, manual_value: m.manual_value });
+      }
+    }
+  }
+}
+
+function strVal(id) {
+  const el = document.getElementById(id);
+  return el ? el.value.trim() || null : null;
+}
+function intVal(id) {
+  const v = strVal(id);
+  return v ? parseInt(v) : null;
+}
+function numVal(id) {
+  const v = strVal(id);
+  return v ? parseFloat(v) : null;
+}
+
+// ═══════════════════════════════════════
+//  DELETE APPLICATION
+// ═══════════════════════════════════════
+document.getElementById('detail-delete-btn').addEventListener('click', () => {
+  const overlay = document.getElementById('modal-overlay');
+  overlay.classList.add('show');
+});
+document.getElementById('modal-cancel').addEventListener('click', () => {
+  document.getElementById('modal-overlay').classList.remove('show');
+});
+document.getElementById('modal-confirm').addEventListener('click', async () => {
+  document.getElementById('modal-overlay').classList.remove('show');
+  const appId = state.currentApp.app.id;
+  showLoading();
+  try {
+    await sb.from('applications').eq('id', appId).delete();
+    showToast('🗑 Application deleted');
+    showScreen('home');
+    loadApplications();
+  } catch(e) {
+    showToast('⚠️ Delete failed: ' + e.message);
+  } finally {
+    hideLoading();
+  }
+});
+
+// ═══════════════════════════════════════
+//  NEW APPLICATION
+// ═══════════════════════════════════════
+document.getElementById('fab-new').addEventListener('click', () => showScreen('new'));
+document.getElementById('new-back').addEventListener('click', () => showScreen('home'));
+document.getElementById('new-submit-btn').addEventListener('click', createApplication);
+
+async function createApplication() {
+  const name = document.getElementById('new-name').value.trim();
+  if (!name) { showToast('⚠️ Consumer name is required'); return; }
+
+  const data = {
+    name,
+    address: document.getElementById('new-address').value.trim() || null,
+    mobile_num: document.getElementById('new-mobile').value.trim() || null,
+    category: document.getElementById('new-category').value || null,
+    site_installer_id: document.getElementById('new-installer').value || null,
+    created_by: state.profile.id,
+    consumer_no: generateConsumerNo(),
+  };
+
+  if (!navigator.onLine) {
+    saveDraft({ type: 'create', data });
+    showToast('💾 Saved offline — will sync when back online');
+    showScreen('home');
+    return;
+  }
+
+  showLoading();
+  try {
+    await createApplicationInDB(data);
+    // Reset form
+    ['new-name','new-address','new-mobile'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('new-category').value = '';
+    document.getElementById('new-installer').value = '';
+    showToast('✅ Application created!');
+    showScreen('home');
+    loadApplications();
+  } catch(e) {
+    showToast('⚠️ Failed: ' + e.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+function generateConsumerNo() {
+  const ts = Date.now().toString();
+  return ts.slice(-12).padStart(12, '0');
+}
+
+async function createApplicationInDB(data) {
+  const { data: result } = await sb.from('applications').insert(data);
+  return result;
+}
+
+// ═══════════════════════════════════════
+//  PDF GENERATION
+// ═══════════════════════════════════════
+document.getElementById('detail-pdf-btn').addEventListener('click', generatePDF);
+
+async function generatePDF() {
+  const { app, s2, s3, materials, s4, pay } = state.currentApp;
+  const role = state.profile.role;
+  showLoading();
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const W = 210; const mar = 15; let y = 20;
+
+    const addLine = (label, value, indent = 0) => {
+      if (y > 270) { doc.addPage(); y = 20; }
+      doc.setFontSize(9); doc.setTextColor(100);
+      doc.text(label, mar + indent, y);
+      doc.setTextColor(30);
+      doc.text(String(value || '—'), mar + 60 + indent, y);
+      y += 6;
+    };
+
+    const addHeading = (text) => {
+      if (y > 270) { doc.addPage(); y = 20; }
+      y += 4;
+      doc.setFillColor(245, 158, 11);
+      doc.rect(mar, y - 4, W - mar * 2, 7, 'F');
+      doc.setFontSize(10); doc.setTextColor(0); doc.setFont(undefined, 'bold');
+      doc.text(text, mar + 2, y);
+      doc.setFont(undefined, 'normal'); doc.setTextColor(30);
+      y += 8;
+    };
+
+    // Header
+    doc.setFontSize(18); doc.setFont(undefined, 'bold'); doc.setTextColor(15, 23, 42);
+    doc.text('SolarWorks 365', mar, y); y += 7;
+    doc.setFontSize(11); doc.setFont(undefined, 'normal'); doc.setTextColor(100);
+    doc.text('Application Report', mar, y); y += 4;
+    doc.setDrawColor(200); doc.line(mar, y, W - mar, y); y += 8;
+
+    addHeading('SECTION 1 — CONSUMER & SITE INFO');
+    addLine('Consumer No.', formatConsumerNo(app.consumer_no));
+    addLine('Name', app.name);
+    addLine('Address', app.address);
+    addLine('Mobile', app.mobile_num);
+    addLine('Category', app.category);
+    const ins = state.installers.find(i => i.id === app.site_installer_id);
+    addLine('Site Installer', ins?.full_name || ins?.username || '—');
+
+    if (role !== 'installer') {
+      addHeading('SECTION 2 — PROGRESS CHECKLIST');
+      const pct = calcProgress(s2);
+      addLine('Overall Progress', `${pct}%`);
+      addLine('DCR / N-DCR', s2.dcr);
+      const checks = [
+        ['Name Change', s2.name_change], ['Model Agreement', s2.model_agreement],
+        ['National Portal Update', s2.national_portal_update], ['Load Enhancement', s2.load_enhancement],
+        ['Gen Meter Testing', s2.gen_meter_testing], ['WCR', s2.wcr],
+        ['Annexure Proforma', s2.annexure_proforma], ['Geo Tagged Photo', s2.geo_tagged_photo],
+        ['Site Photos', s2.site_photos_complete], ['Net Metering', s2.netmetering],
+        ['RTS Upload', s2.rts_upload], ['Release Order', s2.release_order],
+        ['Subsidy Disbursement', s2.subsidy_disbursement],
+      ];
+      checks.forEach(([l, v]) => addLine(l, v ? '✓ Yes' : '✗ No'));
+    }
+
+    addHeading('SECTION 3 — MATERIAL DETAILS');
+    addLine('Panel Qty', s3.panel_qty);
+    addLine('Inverter Qty', s3.inverter_qty);
+    addLine('Inverter Sr. No.', s3.inverter_sr_no);
+    addLine('Generation Meter', s3.generation_meter);
+    addLine('Earthing Pits', s3.earthing_pits);
+    addLine('Anchor Bolt Size', s3.anchor_bolt_size);
+    addLine('Anchor Bolt Qty', s3.anchor_bolt_qty);
+    addLine('Front Leg Size/Qty', `${s3.front_leg_size || '—'} / ${s3.front_leg_qty || '—'}`);
+    addLine('Rear Leg Size/Qty',  `${s3.rear_leg_size  || '—'} / ${s3.rear_leg_qty  || '—'}`);
+    if (materials.length) {
+      y += 2; doc.setFontSize(9); doc.setTextColor(100); doc.text('Multi-Item Materials:', mar, y); y += 5;
+      materials.forEach(m => addLine(`${m.category} – ${m.option_label}`, m.manual_value || m.quantity, 5));
+    }
+    if (s3.other_notes) addLine('Notes', s3.other_notes);
+
+    if (role !== 'installer') {
+      addHeading('SECTION 4 — INSTALLATION TIMELINE');
+      addLine('Start Date', s4.installation_start);
+      addLine('Completion', s4.installation_completion);
+      addLine('Notes', s4.notes);
+    }
+
+    if (role === 'admin') {
+      addHeading('SECTION 6 — PAYMENT TRACKER');
+      addLine('Total Cost', pay.total_project_cost ? `₹${pay.total_project_cost}` : '—');
+      addLine('Advance', pay.advance_amount ? `₹${pay.advance_amount}` : '—');
+      addLine('Advance Date', pay.advance_date);
+      addLine('Advance Mode', pay.advance_mode);
+      addLine('Reference', pay.advance_cheque_no || pay.advance_transaction_id);
+      addLine('2nd Installment', pay.second_installment_amount ? `₹${pay.second_installment_amount}` : '—');
+      addLine('2nd Inst. Date', pay.second_installment_date);
+      addLine('Balance', pay.balance_amount ? `₹${pay.balance_amount}` : '—');
+      addLine('Status', pay.status);
+    }
+
+    // Footer
+    y = 285;
+    doc.setFontSize(8); doc.setTextColor(150);
+    doc.text(`Generated by SolarWorks 365 • ${new Date().toLocaleString('en-IN')}`, mar, y);
+
+    const pdfBlob = doc.output('blob');
+    const fileName = `SolarWorks_${app.consumer_no || 'App'}_${Date.now()}.pdf`;
+
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([pdfBlob], fileName, { type: 'application/pdf' })] })) {
+      await navigator.share({ title: fileName, files: [new File([pdfBlob], fileName, { type: 'application/pdf' })] });
+    } else {
+      // Fallback: download + WhatsApp link
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a'); a.href = url; a.download = fileName; a.click();
+      URL.revokeObjectURL(url);
+      setTimeout(() => {
+        window.open(`https://wa.me/?text=SolarWorks 365 Report for ${app.name} (${formatConsumerNo(app.consumer_no)}) — PDF downloaded to your device.`, '_blank');
+      }, 600);
+    }
+    showToast('📄 PDF ready!');
+  } catch(e) {
+    showToast('⚠️ PDF failed: ' + e.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+// ═══════════════════════════════════════
+//  AUDIT LOG
+// ═══════════════════════════════════════
+async function loadAudit() {
+  showLoading();
+  try {
+    const { data } = await sb.from('audit_log').select('*,profiles!audit_log_changed_by_fkey(full_name)').order('changed_at', false).limit(100).get();
+    const list = document.getElementById('audit-list');
+    if (!data.length) { list.innerHTML = '<div class="empty-state"><div class="e-icon">📜</div><h3>No audit records</h3><p>Changes will appear here</p></div>'; return; }
+    list.innerHTML = data.map(entry => `
+      <div class="audit-item">
+        <div class="audit-time">${new Date(entry.changed_at).toLocaleString('en-IN')}</div>
+        <div class="audit-action"><strong>${entry.action}</strong> on ${entry.table_name}</div>
+        <div class="audit-who">by ${entry.profiles?.full_name || 'Unknown'}</div>
+      </div>
+    `).join('');
+  } catch(e) {
+    showToast('⚠️ Could not load audit log');
+  } finally {
+    hideLoading();
+  }
+}
+
+// ═══════════════════════════════════════
+//  PROFILE
+// ═══════════════════════════════════════
+function renderProfile() {
+  const p = state.profile;
+  if (!p) return;
+  const initials = (p.full_name || p.username || '?').split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase();
+  document.getElementById('profile-avatar').textContent = initials;
+  document.getElementById('profile-name').textContent = p.full_name || p.username;
+  document.getElementById('profile-role').textContent = p.role.charAt(0).toUpperCase() + p.role.slice(1);
+  updateOfflineCount();
+}
+
+document.getElementById('menu-logout').addEventListener('click', async () => {
+  showLoading();
+  await sb.signOut().catch(()=>{});
+  state.user = null; state.profile = null;
+  document.getElementById('bottom-nav').style.display = 'none';
+  document.getElementById('nav-audit').style.display = 'none';
+  showScreen('login');
+  document.getElementById('login-identifier').value = '';
+  document.getElementById('login-password').value = '';
+  hideLoading();
+});
+
+document.getElementById('menu-offline-sync').addEventListener('click', syncOfflineDrafts);
+
+// ═══════════════════════════════════════
+//  SERVICE WORKER
+// ═══════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(e => console.warn('SW:', e));
+  });
+}
+
+// ═══════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════
+(async function boot() {
+  const restored = await tryRestoreSession();
+  if (restored) {
+    enterApp();
+  }
+})();
+</script>
+</body>
+</html>
