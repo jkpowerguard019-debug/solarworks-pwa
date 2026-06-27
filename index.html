@@ -923,11 +923,10 @@ async function tryRestoreSession() {
 }
 
 async function loadProfile() {
-  // RLS on profiles scopes each user to their own row automatically.
-  const { data } = await sb.from('profiles').select('*').limit(1).get();
+  if (!state.user || !state.user.id) throw new Error('Cannot load profile: no signed-in user id available.');
+  const { data } = await sb.from('profiles').select('*').eq('id', state.user.id).limit(1).get();
   if (!data || !data[0]) throw new Error('Profile not found (no row returned for your account — check that your auth token is valid and a matching profiles row exists).');
   state.profile = data[0];
-  if (state.user) state.user.id = data[0].id;
 }
 
 document.getElementById('login-btn').addEventListener('click', doLogin);
