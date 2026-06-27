@@ -708,7 +708,8 @@ const sb = {
       body: JSON.stringify({ email, password })
     });
     const data = await res.json();
-    if (data.error) throw new Error(data.error_description || data.error);
+    if (!res.ok || data.error) throw new Error(data.error_description || data.error || 'Sign-in failed.');
+    if (!data.access_token) throw new Error('Sign-in succeeded but no access token was returned.');
     this._token = data.access_token;
     localStorage.setItem('sw_token', data.access_token);
     localStorage.setItem('sw_refresh', data.refresh_token);
@@ -912,21 +913,20 @@ async function tryRestoreSession() {
     const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${token}` }
     });
-    if (!res.ok) return false;
+    if (!res.ok) { sb._token = null; localStorage.removeItem('sw_token'); return false; }
     const user = await res.json();
     if (user.id) { state.user = user; await loadProfile(); return true; }
-  } catch (e) {}
+  } catch (e) { sb._token = null; localStorage.removeItem('sw_token'); }
+  sb._token = null;
+  localStorage.removeItem('sw_token');
   return false;
 }
 
 async function loadProfile() {
   // RLS on profiles scopes each user to their own row automatically.
-  // We do NOT filter by id here — that would pass undefined if state.user.id
-  // isn't hydrated yet, causing the "invalid input syntax for type uuid: undefined" error.
   const { data } = await sb.from('profiles').select('*').limit(1).get();
-  if (!data || !data[0]) throw new Error('Profile not found. Contact your admin.');
+  if (!data || !data[0]) throw new Error('Profile not found (no row returned for your account — check that your auth token is valid and a matching profiles row exists).');
   state.profile = data[0];
-  // Keep state.user.id in sync with the profile id
   if (state.user) state.user.id = data[0].id;
 }
 
@@ -949,10 +949,10 @@ async function doLogin() {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/email_for_username`, {
         method: 'POST',
         headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uname: identifier })
+        body: JSON.stringify({ p_username: identifier })
       });
       const data = await res.json();
-      if (!data) throw new Error('Username not found.');
+      if (!res.ok || !data || typeof data !== 'string') throw new Error('Username not found.');
       email = data;
     }
     await sb.signIn(email, password);
@@ -960,7 +960,9 @@ async function doLogin() {
     const uRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${sb._token}` }
     });
-    state.user = await uRes.json();
+    const userJson = await uRes.json();
+    if (!uRes.ok || !userJson.id) throw new Error('Could not verify signed-in user (auth/v1/user did not return a user id).');
+    state.user = userJson;
     await loadProfile();
     enterApp();
   } catch (e) {
@@ -1805,7 +1807,7 @@ document.getElementById('menu-offline-sync').addEventListener('click', syncOffli
 // ═══════════════════════════════════════
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(e => console.warn('SW:', e));
+    navigator.serviceWorker.register('./sw.js').catch(e => console.warn('SW:', e));
   });
 }
 
