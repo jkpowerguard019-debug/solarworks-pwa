@@ -550,7 +550,7 @@
     <div class="app-list" id="app-list">
       <div class="empty-state"><div class="e-icon">📋</div><h3>No applications yet</h3><p>Tap + to create the first one</p></div>
     </div>
-    <button class="fab" id="fab-new" title="New Application">+</button>
+    <button class="fab" id="fab-new" title="New Application" style="display:none">+</button>
   </div>
 
   <!-- ═══════════════════════════════════════════
@@ -981,6 +981,11 @@ function enterApp() {
   // Show audit nav only for admin
   if (p.role === 'admin') {
     document.getElementById('nav-audit').style.display = '';
+  }
+
+  // Only Admin and Liasoning can create new applications — Installer cannot (enforced server-side too)
+  if (p.role === 'admin' || p.role === 'liasoning') {
+    document.getElementById('fab-new').style.display = '';
   }
 
   document.getElementById('bottom-nav').style.display = 'flex';
