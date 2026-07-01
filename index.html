@@ -352,6 +352,19 @@
       color: var(--text); font-size: 14px; outline: none;
     }
     .chip-entry-input:focus { border-color: var(--sun); }
+    /* ── Material row-based UI ── */
+    .mat-cat { margin-bottom: 18px; }
+    .mat-cat-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .mat-cat-title { font-size: 13px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .5px; }
+    .mat-add-btn { background: rgba(245,158,11,.15); border: 1px solid var(--sun); color: var(--sun); border-radius: 20px; padding: 3px 12px; font-size: 13px; cursor: pointer; font-weight: 700; }
+    .mat-add-btn:active { opacity: .7; }
+    .mat-row { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
+    .mat-row select { flex: 0 0 120px; background: rgba(255,255,255,.06); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text-1); padding: 7px 8px; font-size: 13px; }
+    .mat-row select:focus { border-color: var(--sun); outline: none; }
+    .mat-row input { flex: 1; background: rgba(255,255,255,.06); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text-1); padding: 7px 10px; font-size: 13px; }
+    .mat-row input:focus { border-color: var(--sun); outline: none; }
+    .mat-del-btn { flex: 0 0 28px; height: 28px; background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.4); color: #ef4444; border-radius: 8px; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .mat-del-btn:active { opacity: .7; }
 
     /* PAYMENT CARDS */
     .payment-grid { display: flex; flex-direction: column; gap: 16px; }
@@ -1217,41 +1230,47 @@ function renderDetail() {
   // ── SECTION 3: Material (Admin + Liasoning + Installer)
   const canEditS3 = true;
   const multiCats = [
-    { key: 'ac_cable',        label: 'AC Cable' },
-    { key: 'dc_cable',        label: 'DC Cable' },
-    { key: 'down_conductor',  label: 'Down Conductor' },
-    { key: 'pvc_pipe',        label: 'PVC Pipe' },
-    { key: 'elbow_bend_t',    label: 'Elbow / Bend / T' },
-    { key: 'earthing_kit',    label: 'Earthing Kit' },
-    { key: 'structure_pipe',  label: 'Structure Pipe' },
-    { key: 'base_plate',      label: 'Base Plate' },
-    { key: 'j_bolts',         label: 'J Bolts' },
+    { key: 'ac_cable',       label: 'AC Cable' },
+    { key: 'dc_cable',       label: 'DC Cable' },
+    { key: 'down_conductor', label: 'Down Conductor' },
+    { key: 'pvc_pipe',       label: 'PVC Pipe' },
+    { key: 'elbow_bend_t',   label: 'Elbow / Bend / T' },
+    { key: 'earthing_kit',   label: 'Earthing Kit' },
+    { key: 'structure_pipe', label: 'Structure Pipe' },
+    { key: 'base_plate',     label: 'Base Plate' },
+    { key: 'j_bolts',        label: 'J Bolts' },
   ];
 
+  function buildMatRow(catKey, optLabel, manVal, qty, matId) {
+    const opts = (state.dropdowns[catKey] || []);
+    const optHtml = opts.map(o => `<option value="${o}" ${o === optLabel ? 'selected' : ''}>${o}</option>`).join('');
+    return `<div class="mat-row" data-cat="${catKey}" ${matId ? `data-mat-id="${matId}"` : ''}>
+      <select>${optHtml}</select>
+      <input placeholder="Value" value="${manVal || ''}" />
+      <input type="number" placeholder="Qty" style="flex:0 0 65px" value="${qty || ''}" />
+      <button class="mat-del-btn" onclick="removeMatRow(this)" title="Remove">×</button>
+    </div>`;
+  }
+
   const multiHTML = multiCats.map(cat => {
-    const opts = state.dropdowns[cat.key] || [];
-    const selected = materials.filter(m => m.category === cat.key);
-    const chips = opts.map(o => {
-      const existing = selected.find(m => m.option_label === o);
-      return `<div class="chip ${existing?'selected':''}" data-cat="${cat.key}" data-opt="${o}" onclick="toggleChip(this)">${o}</div>`;
-    }).join('');
-    const entries = selected.map(m =>
-      `<div class="chip-entry" data-mat-id="${m.id}">
-        <span class="chip-entry-label">${m.option_label}</span>
-        <input class="chip-entry-input" placeholder="Value / qty" value="${m.manual_value || m.quantity || ''}" data-mat-id="${m.id}" data-cat="${m.category}" data-opt="${m.option_label}" onchange="updateMatEntry(this)" />
-      </div>`
-    ).join('');
-    return `
-      <div class="multi-cat" data-cat="${cat.key}">
-        <div class="multi-cat-title">${cat.label}</div>
-        <div class="option-chips" id="chips-${cat.key}">${chips}</div>
-        <div class="chip-entries" id="entries-${cat.key}">${entries}</div>
-      </div>`;
+    const saved = materials.filter(m => m.category === cat.key);
+    // Default: always show at least 1 empty row if no saved items
+    const rows = saved.length
+      ? saved.map(m => buildMatRow(cat.key, m.option_label, m.manual_value, m.quantity, m.id)).join('')
+      : buildMatRow(cat.key, (state.dropdowns[cat.key] || [])[0], '', '', null);
+    return `<div class="mat-cat" data-cat="${cat.key}">
+      <div class="mat-cat-header">
+        <span class="mat-cat-title">${cat.label}</span>
+        <button class="mat-add-btn" onclick="addMatRow('${cat.key}')">+ Add</button>
+      </div>
+      <div class="mat-rows" id="matrows-${cat.key}">${rows}</div>
+    </div>`;
   }).join('');
 
   const s3HTML = `
     <div class="detail-field"><div class="detail-label">Panel Quantity</div><input class="detail-input" id="d-panel-qty" type="number" value="${s3.panel_qty || ''}" /></div>
-    <div class="detail-field"><div class="detail-label">Inverter Quantity</div><input class="detail-input" id="d-inverter-qty" type="number" value="${s3.inverter_qty || ''}" /></div>
+    <div class="detail-field"><div class="detail-label">Panel Capacity</div><input class="detail-input" id="d-panel-capacity" type="text" placeholder="e.g. 540W" value="${s3.panel_capacity || ''}" /></div>
+    <div class="detail-field"><div class="detail-label">Inverter Quantity</div><input class="detail-input" id="d-inverter-qty" type="text" placeholder="e.g. 3 + 1 spare" value="${s3.inverter_qty || ''}" /></div>
     <div class="detail-field"><div class="detail-label">Inverter Serial No.</div><input class="detail-input" id="d-inverter-sr" value="${s3.inverter_sr_no || ''}" /></div>
     <div class="detail-field"><div class="detail-label">Generation Meter</div><input class="detail-input" id="d-gen-meter" value="${s3.generation_meter || ''}" /></div>
     <div class="detail-field"><div class="detail-label">Earthing Pits</div><input class="detail-input" id="d-earthing-pits" type="number" value="${s3.earthing_pits || ''}" /></div>
@@ -1304,7 +1323,7 @@ function renderDetail() {
         </div>
         <div class="payment-block">
           <div class="payment-block-title">Balance</div>
-          <div class="detail-field"><div class="detail-label">Balance Amount (₹)</div><input class="detail-input" id="d-bal-amt" type="number" value="${pay.balance_amount || ''}" /></div>
+          <div class="detail-field"><div class="detail-label">Balance Amount (₹) — auto-calculated</div><input class="detail-input" id="d-bal-amt" type="number" value="${pay.balance_amount || ''}" readonly style="opacity:.75;background:rgba(255,255,255,.04)" /></div>
           <div class="detail-field"><div class="detail-label">Payment Status</div>
             <select class="detail-select" id="d-pay-status">
               <option value="">Select</option>
@@ -1316,6 +1335,17 @@ function renderDetail() {
       </div>
     `;
     content.appendChild(buildSection('💰', 'Section 6 — Payment Tracker', payHTML));
+
+    // Live-recalculate Balance Amount as the admin edits the contributing fields
+    const recalcBalance = () => {
+      const total = parseFloat(document.getElementById('d-total-cost').value) || 0;
+      const adv = parseFloat(document.getElementById('d-adv-amt').value) || 0;
+      const second = parseFloat(document.getElementById('d-2nd-amt').value) || 0;
+      document.getElementById('d-bal-amt').value = (total - adv - second).toFixed(2);
+    };
+    ['d-total-cost', 'd-adv-amt', 'd-2nd-amt'].forEach(id => {
+      document.getElementById(id).addEventListener('input', recalcBalance);
+    });
   }
 
   content.classList.add('fade-in');
@@ -1423,7 +1453,8 @@ async function saveDetail() {
   // Section 3
   updates.s3 = {
     panel_qty:         intVal('d-panel-qty'),
-    inverter_qty:      intVal('d-inverter-qty'),
+    panel_capacity:    strVal('d-panel-capacity'),
+    inverter_qty:      strVal('d-inverter-qty'),
     inverter_sr_no:    strVal('d-inverter-sr'),
     generation_meter:  strVal('d-gen-meter'),
     earthing_pits:     intVal('d-earthing-pits'),
