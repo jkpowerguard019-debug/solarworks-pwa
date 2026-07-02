@@ -1,0 +1,8 @@
+# Local dev config — NEVER commit real credentials
+.env
+.env.local
+config.local.js
+
+# OS junk
+.DS_Store
+Thumbs.db
