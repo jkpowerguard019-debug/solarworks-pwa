@@ -333,25 +333,6 @@
     }
     .radio-btn.selected { background: rgba(245,158,11,.15); border-color: var(--sun); color: var(--sun); }
 
-    /* MULTI-SELECT MATERIAL */
-    .multi-cat { margin-bottom: 16px; }
-    .multi-cat-title { font-size: 13px; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
-    .option-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-    .chip {
-      padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
-      cursor: pointer; transition: all .15s;
-      background: rgba(255,255,255,.05); border: 1px solid var(--glass-border); color: var(--text-2);
-    }
-    .chip.selected { background: rgba(245,158,11,.15); border-color: var(--sun); color: var(--sun); }
-    .chip-entries { display: flex; flex-direction: column; gap: 6px; }
-    .chip-entry { display: flex; align-items: center; gap: 8px; }
-    .chip-entry-label { font-size: 12px; color: var(--text-2); min-width: 80px; }
-    .chip-entry-input {
-      flex: 1; padding: 8px 10px; background: rgba(255,255,255,.05);
-      border: 1px solid var(--glass-border); border-radius: 6px;
-      color: var(--text); font-size: 14px; outline: none;
-    }
-    .chip-entry-input:focus { border-color: var(--sun); }
     /* ── Material row-based UI ── */
     .mat-cat { margin-bottom: 18px; }
     .mat-cat-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
@@ -617,9 +598,7 @@
           </div>
           <div class="detail-field">
             <div class="detail-label">Site Installer</div>
-            <select class="detail-select" id="new-installer">
-              <option value="">Assign installer</option>
-            </select>
+            <input class="detail-input" id="new-installer" placeholder="Enter installer name" />
           </div>
         </div>
       </div>
@@ -1004,7 +983,6 @@ function enterApp() {
   document.getElementById('bottom-nav').style.display = 'flex';
   showScreen('home');
   loadDropdowns();
-  loadInstallers();
   loadApplications();
   updateOfflineCount();
   syncOfflineDrafts();
@@ -1024,30 +1002,15 @@ async function loadDropdowns() {
   } catch(e) {}
 }
 
-async function loadInstallers() {
-  try {
-    const { data } = await sb.from('profiles').select('id,full_name,username').eq('role','installer').get();
-    state.installers = data;
-    const sel = document.getElementById('new-installer');
-    if (sel) {
-      data.forEach(ins => {
-        const opt = document.createElement('option');
-        opt.value = ins.id; opt.textContent = ins.full_name || ins.username;
-        sel.appendChild(opt);
-      });
-    }
-  } catch(e) {}
-}
-
 // ═══════════════════════════════════════
 //  LOAD APPLICATIONS
 // ═══════════════════════════════════════
 async function loadApplications() {
   showLoading();
   try {
-    let query = sb.from('applications').select('*,section2_progress(*),profiles!applications_site_installer_id_fkey(full_name,username)').order('created_at', false);
+    let query = sb.from('applications').select('*,section2_progress(*)').order('created_at', false);
     if (state.profile.role === 'installer') {
-      query = query.eq('site_installer_id', state.profile.id);
+    // Installers see all applications (site_installer_name is free text now)
     }
     const { data } = await query.get();
     state.applications = data;
@@ -1120,7 +1083,7 @@ async function openApp(id) {
   showLoading();
   try {
     const [appRes, s2Res, s3Res, matRes, s4Res] = await Promise.all([
-      sb.from('applications').select('*,profiles!applications_site_installer_id_fkey(id,full_name)').eq('id', id).get(),
+      sb.from('applications').select('*').eq('id', id).get(),
       sb.from('section2_progress').select('*').eq('application_id', id).get(),
       sb.from('section3_material').select('*').eq('application_id', id).get(),
       sb.from('material_items').select('*').eq('application_id', id).get(),
@@ -1164,10 +1127,6 @@ function renderDetail() {
 
   // ── SECTION 1: Consumer Info (all roles see it)
   const canEditS1 = role === 'admin' || role === 'liasoning' || role === 'installer';
-  const installerOptions = state.installers.map(ins =>
-    `<option value="${ins.id}" ${app.site_installer_id === ins.id ? 'selected' : ''}>${ins.full_name || ins.username}</option>`
-  ).join('');
-
   content.appendChild(buildSection('📋', 'Section 1 — Consumer & Site Info', `
     <div class="detail-field"><div class="detail-label">Consumer No.</div><input class="detail-input" value="${formatConsumerNo(app.consumer_no)}" readonly /></div>
     <div class="detail-field"><div class="detail-label">Name</div><input class="detail-input" id="d-name" value="${app.name || ''}" ${!canEditS1 ? 'readonly' : ''} /></div>
@@ -1182,9 +1141,7 @@ function renderDetail() {
       </select>
     </div>
     <div class="detail-field"><div class="detail-label">Site Installer</div>
-      <select class="detail-select" id="d-installer" ${role==='installer'?'disabled':''}>
-        <option value="">— Unassigned —</option>${installerOptions}
-      </select>
+      <input class="detail-input" id="d-installer" placeholder="Installer name" value="${app.site_installer_name || ''}" ${role==='installer'?'readonly':''} />
     </div>
   `, true));
 
@@ -1388,35 +1345,39 @@ function updateS2Progress() {
   if (txt)  txt.textContent = pct + '% complete';
 }
 
-// ─── Multi-select material chips ───
-window.toggleChip = function(chip) {
-  const cat  = chip.dataset.cat;
-  const opt  = chip.dataset.opt;
-  chip.classList.toggle('selected');
-  const entries = document.getElementById(`entries-${cat}`);
-  if (chip.classList.contains('selected')) {
-    const row = document.createElement('div');
-    row.className = 'chip-entry';
-    row.dataset.cat = cat; row.dataset.opt = opt;
-    row.innerHTML = `
-      <span class="chip-entry-label">${opt}</span>
-      <input class="chip-entry-input" placeholder="Value / qty" data-cat="${cat}" data-opt="${opt}" onchange="updateMatEntry(this)" />
-    `;
-    entries.appendChild(row);
-  } else {
-    const existing = entries.querySelector(`.chip-entry[data-opt="${opt}"]`);
-    if (existing) existing.remove();
-    // Mark for deletion from DB
-    const matId = entries.querySelector(`[data-mat-id][data-opt="${opt}"]`);
-    if (matId && matId.dataset.matId) {
-      state._deleteMats = state._deleteMats || [];
-      state._deleteMats.push(matId.dataset.matId);
-    }
-  }
+// ─── Row-based material items ───
+window.addMatRow = function(catKey) {
+  const container = document.getElementById(`matrows-${catKey}`);
+  const opts = (state.dropdowns[catKey] || []);
+  const optHtml = opts.map(o => `<option value="${o}">${o}</option>`).join('');
+  const row = document.createElement('div');
+  row.className = 'mat-row';
+  row.dataset.cat = catKey;
+  row.innerHTML = `
+    <select>${optHtml}</select>
+    <input placeholder="Value" />
+    <input type="number" placeholder="Qty" style="flex:0 0 65px" />
+    <button class="mat-del-btn" onclick="removeMatRow(this)" title="Remove">×</button>
+  `;
+  container.appendChild(row);
 };
 
-window.updateMatEntry = function(input) {
-  // Live-save not needed; collected on Save
+window.removeMatRow = function(btn) {
+  const row = btn.closest('.mat-row');
+  const matId = row.dataset.matId;
+  if (matId) {
+    state._deleteMats = state._deleteMats || [];
+    state._deleteMats.push(matId);
+  }
+  // Don't allow removing the last row in a category — just clear it instead
+  const container = row.closest('.mat-rows');
+  if (container.querySelectorAll('.mat-row').length <= 1) {
+    row.querySelectorAll('input').forEach(i => i.value = '');
+    row.querySelector('select').selectedIndex = 0;
+    delete row.dataset.matId;
+    return;
+  }
+  row.remove();
 };
 
 // ═══════════════════════════════════════
@@ -1437,7 +1398,7 @@ async function saveDetail() {
     address: document.getElementById('d-address')?.value,
     mobile_num: document.getElementById('d-mobile')?.value,
     category: document.getElementById('d-category')?.value || null,
-    site_installer_id: document.getElementById('d-installer')?.value || null,
+    site_installer_name: document.getElementById('d-installer')?.value || null,
   };
 
   // Section 2
@@ -1467,14 +1428,15 @@ async function saveDetail() {
     other_notes:       strVal('d-other-notes'),
   };
 
-  // Material items
-  const chipEntries = document.querySelectorAll('.chip-entry');
-  updates.materials = [...chipEntries].map(row => ({
+  // Material items — collect all mat-rows
+  const matRows = document.querySelectorAll('.mat-row');
+  updates.materials = [...matRows].map(row => ({
     application_id: appId,
-    category: row.dataset.cat || row.querySelector('[data-cat]')?.dataset.cat,
-    option_label: row.dataset.opt || row.querySelector('[data-opt]')?.dataset.opt,
-    manual_value: row.querySelector('input')?.value || '',
-    _mat_id: row.dataset.matId || row.querySelector('[data-mat-id]')?.dataset.matId
+    category: row.dataset.cat,
+    option_label: row.querySelector('select')?.value || '',
+    manual_value: row.querySelectorAll('input')[0]?.value || '',
+    quantity: parseFloat(row.querySelectorAll('input')[1]?.value) || null,
+    _mat_id: row.dataset.matId || null
   })).filter(m => m.category && m.option_label);
 
   // Section 4
@@ -1617,7 +1579,7 @@ async function createApplication() {
     address: document.getElementById('new-address').value.trim() || null,
     mobile_num: document.getElementById('new-mobile').value.trim() || null,
     category: document.getElementById('new-category').value || null,
-    site_installer_id: document.getElementById('new-installer').value || null,
+    site_installer_name: document.getElementById('new-installer').value.trim() || null,
     created_by: state.profile.id,
     consumer_no: generateConsumerNo(),
   };
@@ -1704,8 +1666,7 @@ async function generatePDF() {
     addLine('Address', app.address);
     addLine('Mobile', app.mobile_num);
     addLine('Category', app.category);
-    const ins = state.installers.find(i => i.id === app.site_installer_id);
-    addLine('Site Installer', ins?.full_name || ins?.username || '—');
+    addLine('Site Installer', app.site_installer_name || '—');
 
     if (role !== 'installer') {
       addHeading('SECTION 2 — PROGRESS CHECKLIST');
